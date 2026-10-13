@@ -1,14 +1,15 @@
 name: Update Document
 
-# Runs only when the docs (or the MkDocs config) change on the default branch.
-# Asks Backstage to rebuild THIS repo's docs; other repos are not touched.
+# Try: ask Backstage to rebuild THIS repo's docs.
+# Catch: if the entity is missing from the catalog (404 NotFoundError),
+#        register this repo's catalog-info.yaml, wait for the entity, then retry once.
 on:
   push:
     branches: [main]            # change if the repo's default branch differs
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-  
+      - 'catalog-info.yaml'
   workflow_dispatch:            # lets you run it manually from the Actions tab
 
 permissions:
@@ -52,19 +53,93 @@ jobs:
           )
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
-      - name: Ask Backstage to rebuild this repo's docs
-        id: sync
+      - name: Sync docs (register the entity first if it is missing)
         env:
-          BACKSTAGE_URL: ${{ vars.BACKSTAGE_URL }}        # e.g. https://backstage.example.com
+          BACKSTAGE_URL: ${{ vars.BACKSTAGE_URL }}
           BACKSTAGE_TOKEN: ${{ secrets.BACKSTAGE_TOKEN }}
           ENTITY: ${{ steps.entity.outputs.ref }}
+          CATALOG_FILE_URL: https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/catalog-info.yaml
         run: |
-          set -euo pipefail
-          # The response is an event stream that ends when the build finishes.
-          curl --silent --show-error --fail-with-body --no-buffer --max-time 900 \
-            -H "Authorization: Bearer $BACKSTAGE_TOKEN" \
-            "${BACKSTAGE_URL%/}/api/techdocs/sync/$ENTITY" | tee sync.log
-          if grep -q '^event: error' sync.log; then
-            echo "Backstage reported a docs build error for $ENTITY" >&2
+          set -uo pipefail
+
+          # Remove accidental spaces or line breaks from the variable and the secret
+          URL="$(printf '%s' "$BACKSTAGE_URL" | tr -d '[:space:]')"
+          URL="${URL%/}"
+          TOKEN="$(printf '%s' "$BACKSTAGE_TOKEN" | tr -d '[:space:]')"
+
+          # default/component/bindu -> NS=default KIND=component NAME=bindu
+          NS="${ENTITY%%/*}"; REST="${ENTITY#*/}"; KIND="${REST%%/*}"; NAME="${REST#*/}"
+
+          # Calls the sync endpoint, prints the stream, and sets SYNC_CODE (HTTP status)
+          sync_docs() {
+            SYNC_CODE=$(curl -sS --no-buffer --max-time 900 -o sync.log -w '%{http_code}' \
+              -H "Authorization: Bearer $TOKEN" \
+              "$URL/api/techdocs/sync/$ENTITY") || SYNC_CODE=000
+            cat sync.log
+            echo
+          }
+
+          sync_ok() {
+            [ "$SYNC_CODE" = "200" ] && ! grep -q '^event: error' sync.log
+          }
+
+          # ---------- TRY ----------
+          echo "== Try: sync docs for $ENTITY"
+          sync_docs
+          if sync_ok; then
+            echo "Docs rebuilt for $ENTITY."
+            exit 0
+          fi
+
+          # ---------- CATCH (only for the "entity missing" error) ----------
+          if [ "$SYNC_CODE" != "404" ] || ! grep -q 'NotFoundError' sync.log; then
+            echo "Sync failed (HTTP $SYNC_CODE). This is not a missing-entity problem." >&2
             exit 1
           fi
+
+          echo "== Catch: $ENTITY is not in the catalog. Registering catalog-info.yaml"
+          if [ ! -f catalog-info.yaml ]; then
+            echo "This repo has no catalog-info.yaml, so it cannot be registered." >&2
+            exit 1
+          fi
+
+          REG_CODE=$(curl -sS -o reg.log -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"type\":\"url\",\"target\":\"$CATALOG_FILE_URL\"}" \
+            "$URL/api/catalog/locations") || REG_CODE=000
+
+          case "$REG_CODE" in
+            200|201) echo "Location registered." ;;
+            409)     echo "Location was already registered." ;;
+            *)
+              echo "Registration failed (HTTP $REG_CODE):" >&2
+              cat reg.log >&2
+              exit 1
+              ;;
+          esac
+
+          # The catalog processes the new location in the background, so wait for the entity
+          echo "== Waiting for the entity to appear (up to 2 minutes)"
+          CODE=000
+          for i in $(seq 1 24); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer $TOKEN" \
+              "$URL/api/catalog/entities/by-name/$KIND/$NS/$NAME") || CODE=000
+            [ "$CODE" = "200" ] && break
+            sleep 5
+          done
+          if [ "$CODE" != "200" ]; then
+            echo "Entity $ENTITY did not appear in the catalog within 2 minutes." >&2
+            exit 1
+          fi
+
+          # ---------- RETRY ----------
+          echo "== Retry: sync docs for $ENTITY"
+          sync_docs
+          if sync_ok; then
+            echo "Docs rebuilt for $ENTITY after registering it."
+            exit 0
+          fi
+          echo "Retry failed (HTTP $SYNC_CODE)." >&2
+          exit 1
