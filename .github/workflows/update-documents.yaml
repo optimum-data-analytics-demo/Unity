@@ -80,7 +80,7 @@ jobs:
           }
 
           sync_ok() {
-            [ "$SYNC_CODE" = "200" ] && ! grep -q '^event: error' sync.log
+            [ "$SYNC_CODE" = "200" ] && grep -q '^event: finish' sync.log && ! grep -q '^event: error' sync.log
           }
 
           # ---------- TRY ----------
