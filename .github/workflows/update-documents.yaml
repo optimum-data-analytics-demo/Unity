@@ -1,0 +1,70 @@
+name: Update Document
+
+# Runs only when the docs (or the MkDocs config) change on the default branch.
+# Asks Backstage to rebuild THIS repo's docs; other repos are not touched.
+on:
+  push:
+    branches: [main]            # change if the repo's default branch differs
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+  
+  workflow_dispatch:            # lets you run it manually from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: techdocs-refresh-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The entity reference must match the component name in Backstage.
+      # Uses catalog-info.yaml if the repo has one, otherwise the repo name.
+      - name: Work out the entity reference
+        id: entity
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          pip install --quiet pyyaml
+          REF=$(python - <<'EOF'
+          import os, yaml
+          name = os.environ["REPO_NAME"]
+          namespace = "default"
+          if os.path.exists("catalog-info.yaml"):
+              for doc in yaml.safe_load_all(open("catalog-info.yaml")):
+                  if doc and doc.get("kind") == "Component":
+                      meta = doc.get("metadata", {})
+                      name = meta.get("name", name)
+                      namespace = meta.get("namespace", namespace)
+                      break
+          print(f"{namespace}/component/{name}".lower())
+          EOF
+          )
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Ask Backstage to rebuild this repo's docs
+        id: sync
+        env:
+          BACKSTAGE_URL: ${{ vars.BACKSTAGE_URL }}        # e.g. https://backstage.example.com
+          BACKSTAGE_TOKEN: ${{ secrets.BACKSTAGE_TOKEN }}
+          ENTITY: ${{ steps.entity.outputs.ref }}
+        run: |
+          set -euo pipefail
+          # The response is an event stream that ends when the build finishes.
+          curl --silent --show-error --fail-with-body --no-buffer --max-time 900 \
+            -H "Authorization: Bearer $BACKSTAGE_TOKEN" \
+            "${BACKSTAGE_URL%/}/api/techdocs/sync/$ENTITY" | tee sync.log
+          if grep -q '^event: error' sync.log; then
+            echo "Backstage reported a docs build error for $ENTITY" >&2
+            exit 1
+          fi
