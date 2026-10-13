@@ -82,12 +82,21 @@ jobs:
           sync_ok() {
             [ "$SYNC_CODE" = "200" ] && grep -q '^event: finish' sync.log && ! grep -q '^event: error' sync.log
           }
-
           # ---------- TRY ----------
           echo "== Try: sync docs for $ENTITY"
-          sync_docs
+          sleep 15   # give GitHub a moment to show the new commit
+          for attempt in 1 2 3; do
+            sync_docs
+            sync_ok || break
+            if grep -q '"updated":true' sync.log; then
+              echo "Docs rebuilt for $ENTITY."
+              exit 0
+            fi
+            echo "Attempt $attempt: Backstage reports no new commit."
+            [ "$attempt" -lt 3 ] && sleep 30
+          done
           if sync_ok; then
-            echo "Docs rebuilt for $ENTITY."
+            echo "Docs for $ENTITY are unchanged (already up to date)."
             exit 0
           fi
 
