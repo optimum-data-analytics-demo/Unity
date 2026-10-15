@@ -1,5 +1,4 @@
 name: Update Techdocs Documents
-
 on:
   push: 
     branches: [main]
