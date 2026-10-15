@@ -10,6 +10,7 @@ This document provides architectural guidelines, API references, and best practi
 
 ---
 
+
 ## Architecture Overview
 
 The system architecture consists of three fundamental building blocks working together to manage app state and visual transitions:
