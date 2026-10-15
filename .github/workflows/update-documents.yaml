@@ -32,7 +32,7 @@ jobs:
         run: mkdocs build 
 
       - name: read entity name 
-        run: echo "ENTITY_NAME=$(python -c "import yaml;print(yaml.safe_load(open('catalog-info.yaml','r'))['metadata']['name'].lower()")">>$GITHUB_ENV
+        run: echo "ENTITY_NAME=$(python -c "import yaml; print(yaml.safe_load(open("catalog-info.yaml","r"))["metadata"]["name"])")">>$GITHUB_ENV
       
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@2
@@ -43,5 +43,5 @@ jobs:
         uses: google-github-actions/upload-cloud-storage@v2
         with:
           path: site/
-          destination: ${{secrets.GCP_BUCKET_NAME}}/default/component/${{env.ENTITy_NAME}}
+          destination: ${{secrets.GCP_BUCKET_NAME}}/default/component/${{env.ENTITY_NAME}}
           parent: false
