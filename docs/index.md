@@ -56,6 +56,14 @@ async function fetchSystemStatus() {
 fetchSystemStatus();
 ```
 
+# Python Snippet
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+
+greet("World")
+```
+
 ---
 
 ## Data Table
