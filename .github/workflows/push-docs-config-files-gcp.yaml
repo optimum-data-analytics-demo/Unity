@@ -23,7 +23,7 @@ jobs:
           python -m pip install pyyaml
       - name: read-entity-name
         run: |
-          NAME=$(python -c "import yaml; print(yaml.safe_load(open("catalog-info.yaml","r"))['metadata']['name'].lower()) " )
+          NAME=$(python -c "import yaml; print(yaml.safe_load(open('catalog-info.yaml', 'r'))['metadata']['name'].lower())")
           echo "ENTITY_NAME=$NAME" >> $GITHUB_ENV
       - name: Authenticate to gcp 
         uses: google-github-actions/auth@v2
