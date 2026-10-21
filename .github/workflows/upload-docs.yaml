@@ -26,6 +26,6 @@ jobs:
           
       - name: Upload files to GCP
         run: |
-          gcloud storage docs gs://${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}/docs
+          gcloud storage cp docs gs://${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}/docs
           
     
