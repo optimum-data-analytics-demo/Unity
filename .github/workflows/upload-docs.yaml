@@ -1,0 +1,31 @@
+name: Upload Docs to GCP Bucket
+
+on:
+  push: 
+    branches: 
+      - main
+      - master
+    paths:
+      - 'docs/**'
+
+jobs:
+  Upload-Files:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo 
+        uses: actions/checkout@v4
+      
+      - name: read entity name 
+        run: | 
+          NAME=$(python -c "import yaml; print(yaml.safe_load(open('catalog-info.yaml','r'))['metadata']['name'].lower())")
+          echo"ENTITY_NAME=$NAME" >> $GITHUB_ENV    
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{secrets.GCP_SA_KEY}}
+          
+      - name: Upload files to GCP
+        run: |
+          gcloud storage docs gs://${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}/docs
+          
+    
