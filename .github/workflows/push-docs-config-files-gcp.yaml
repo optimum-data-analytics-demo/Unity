@@ -36,6 +36,6 @@ jobs:
           path: |
             catalog-info.yaml
             mkdocs.yaml
-          destination: $${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}
-          parent: False
+          destination: ${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}
+          parent: false
       
