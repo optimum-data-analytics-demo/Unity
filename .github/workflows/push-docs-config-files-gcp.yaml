@@ -11,6 +11,8 @@ jobs:
   Upload-to-GCP:
     runs-on: ubuntu-latest
     steps:
+      - name: checkout repository
+        uses: actions/checkouts@v4
       - name: Setup python
         uses: actions/setup-python@v5
         with:
