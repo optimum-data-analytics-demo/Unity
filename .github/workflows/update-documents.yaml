@@ -5,9 +5,9 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'mkdocs.yaml'
-      - 'catalog-info.yaml'
-      - '.github/**'
+      # - 'mkdocs.yaml'
+      # - 'catalog-info.yaml'
+      # - '.github/**'
 
 jobs:
   build-mkdocs:
