@@ -21,7 +21,7 @@ jobs:
           echo "ENTITY_NAME=$NAME" >> $GITHUB_ENV    
       - name: create mkdocs.yaml files
         run: |
-          if [! -f mkdocs.yaml]; then 
+          if [ ! -f mkdocs.yaml ]; then 
           cat > mkdocs.yaml <<EOF
           site_name: ${{env.ENTITY_NAME}}
           plugins:
@@ -30,7 +30,7 @@ jobs:
           fi
       - name: create catalog-info.yaml file if not exist
         run: |
-          if [! catalog-info.yaml]; then
+          if [ ! catalog-info.yaml ]; then
           cat > catalog-info.yaml << EOF
           apiVersion: backstage.io/v1alpha1
           kind: Component
@@ -42,6 +42,10 @@ jobs:
             type: service
             lifecycle: production
             owner: group:default/guests
+
+          EOF
+          fi
+          
           
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
