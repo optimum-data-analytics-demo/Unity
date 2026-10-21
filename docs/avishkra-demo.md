@@ -1,8 +1,6 @@
 # 🚀 CyberNexus Alpha v4.2
 
-[![License: MIT](https://shields.io)](https://opensource.org)
-[![Build Status](https://shields.io)]()
-[![Version](https://shields.io)]()
+
 
 A robust, asynchronous pipeline utility built to synthesize cross-platform telemetry streams into actionable operational data.
 
