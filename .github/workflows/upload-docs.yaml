@@ -19,6 +19,30 @@ jobs:
         run: | 
           NAME=$(python -c "import yaml; print(yaml.safe_load(open('catalog-info.yaml','r'))['metadata']['name'].lower())")
           echo "ENTITY_NAME=$NAME" >> $GITHUB_ENV    
+      - name: create mkdocs.yaml files
+        run: |
+          if [! -f mkdocs.yaml]; then 
+          cat > mkdocs.yaml <<EOF
+          site_name: ${{env.ENTITY_NAME}}
+          plugins:
+            - techdocs-core          
+          EOF
+          fi
+      - name: create catalog-info.yaml file if not exist
+        run: |
+          if [! catalog-info.yaml]; then
+          cat > catalog-info.yaml << EOF
+          apiVersion: backstage.io/v1alpha1
+          kind: Component
+          metadata:
+            name: ${env.ENTITY_NAME}
+            annotations:
+              backstage.io/techdocs-ref: dir:.
+          spec:
+            type: service
+            lifecycle: production
+            owner: group:default/guests
+          
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -27,5 +51,6 @@ jobs:
       - name: Upload files to GCP
         run: |
           gcloud storage cp -r docs gs://${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}/
-          
+          gcloud storage cp catalog-info.yaml gs://${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}
+          gcloud storage cp mkdocs.yaml gs://${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}
     
