@@ -39,4 +39,3 @@ jobs:
           destination: $${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}
           parent: False
       
-
