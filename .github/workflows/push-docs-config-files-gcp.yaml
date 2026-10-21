@@ -33,7 +33,7 @@ jobs:
       - name: Uploads files to GCP
         uses: google-github-actions/upload-cloud-storage@v2
         with:
-          paths: |
+          path: |
             catalog-info.yaml
             mkdocs.yaml
           destination: $${{secrets.GCP_BUCKET_NAME}}/${{env.ENTITY_NAME}}
