@@ -6,6 +6,7 @@ on:
     paths:
       - 'mkdocs.yaml' 
       - 'catalog-info.yaml' 
+      - '.github/**'
 
 jobs:
   Upload-to-GCP:
